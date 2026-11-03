@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>DeepSeek Harness</title>
+    <style>
+      @font-face {
+        font-family: "Montserrat";
+        font-style: normal;
+        font-weight: 300;
+        font-display: block;
+        src: url("./fonts/montserrat-light.woff2") format("woff2");
+      }
+
+      @font-face {
+        font-family: "Montserrat";
+        font-style: normal;
+        font-weight: 500;
+        font-display: block;
+        src: url("./fonts/montserrat-medium.woff2") format("woff2");
+      }
+
+      :root {
+        --bg: #05070a;
+        --ink: #eef4ff;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        overflow: hidden;
+      }
+
+      body {
+        font-family: "Montserrat", "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+        cursor: none;
+      }
+
+      .stage {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(56% 44% at 50% 46%, rgba(48, 96, 180, 0.34) 0%, rgba(12, 22, 40, 0.10) 46%, transparent 74%),
+          radial-gradient(130% 95% at 50% 118%, #0a1728 0%, #05070a 56%, #030507 100%);
+        opacity: 0;
+        animation: stage-in 600ms ease-out forwards;
+      }
+
+      /* deep-water ambience */
+      .aurora {
+        position: absolute;
+        inset: -22%;
+        filter: blur(80px);
+        opacity: 0.5;
+        animation: aurora 11s ease-in-out infinite alternate;
+      }
+
+      .aurora::before,
+      .aurora::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+      }
+
+      .aurora::before {
+        width: 48vw;
+        height: 32vw;
+        left: 16%;
+        top: 20%;
+        background: radial-gradient(closest-side, rgba(65, 118, 230, 0.5), transparent);
+      }
+
+      .aurora::after {
+        width: 42vw;
+        height: 28vw;
+        right: 12%;
+        bottom: 16%;
+        background: radial-gradient(closest-side, rgba(77, 147, 248, 0.38), transparent);
+        animation: aurora-2 13s ease-in-out infinite alternate;
+      }
+
+      #bubbles {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* sonar rings */
+      .rings {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+      }
+
+      .rings span {
+        position: absolute;
+        width: min(44vw, 500px);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        border: 1px solid rgba(124, 172, 255, 0.20);
+        opacity: 0;
+        transform: scale(0.4);
+        animation: ring 2800ms cubic-bezier(0.22, 0.7, 0.3, 1) infinite;
+      }
+
+      .rings span:nth-child(2) { animation-delay: 470ms; }
+      .rings span:nth-child(3) { animation-delay: 940ms; }
+
+      /* core */
+      .core {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 34px;
+        transform: translateY(-1vh);
+      }
+
+      .emblem {
+        position: relative;
+        width: clamp(76px, 8.2vw, 118px);
+        aspect-ratio: 24.5 / 19;
+        opacity: 0;
+        filter: blur(14px) brightness(1.1);
+        transform: scale(0.78);
+        animation: emblem-in 760ms 120ms cubic-bezier(0.16, 0.84, 0.24, 1) forwards;
+      }
+
+      .emblem img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        filter:
+          drop-shadow(0 0 10px rgba(150, 195, 255, 0.55))
+          drop-shadow(0 0 34px rgba(70, 130, 240, 0.45));
+      }
+
+      /* halo behind the emblem */
+      .emblem::before {
+        content: "";
+        position: absolute;
+        inset: -85% -55%;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(90, 150, 255, 0.30), transparent 72%);
+        opacity: 0;
+        animation: halo 2600ms 700ms ease-in-out infinite;
+        z-index: -1;
+      }
+
+      .wordmark-wrap {
+        position: relative;
+        margin-top: 2px;
+        white-space: nowrap;
+      }
+
+      .wordmark,
+      .sheen {
+        font-size: clamp(24px, 2.5vw, 36px);
+        font-weight: 500;
+        letter-spacing: 0.30em;
+        text-indent: 0.30em;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .wordmark {
+        color: #e8f0ff;
+        text-shadow:
+          0 0 18px rgba(110, 165, 255, 0.45),
+          0 0 60px rgba(60, 110, 220, 0.35);
+      }
+
+      .wordmark span {
+        display: inline-block;
+        opacity: 0;
+        filter: blur(7px);
+        transform: translateY(12px);
+        animation: letter-in 620ms cubic-bezier(0.16, 0.84, 0.24, 1) forwards;
+      }
+
+      .sheen {
+        position: absolute;
+        inset: 0;
+        color: transparent;
+        background-image: linear-gradient(
+          100deg,
+          rgba(255, 255, 255, 0) 38%,
+          rgba(226, 240, 255, 0.55) 46%,
+          rgba(255, 255, 255, 0.95) 50%,
+          rgba(226, 240, 255, 0.55) 54%,
+          rgba(255, 255, 255, 0) 62%
+        );
+        background-size: 260% 100%;
+        background-repeat: no-repeat;
+        background-position: 190% 0;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: sheen 1200ms 1500ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        pointer-events: none;
+      }
+
+      /* the sheen reuses the exact same per-letter boxes so it lines up with the wordmark */
+      .sheen span { display: inline-block; }
+
+      .tagline {
+        margin-top: -12px;
+        font-size: clamp(13px, 1.05vw, 16px);
+        font-weight: 300;
+        letter-spacing: 0.34em;
+        text-indent: 0.34em;
+        color: rgba(172, 196, 232, 0.82);
+        opacity: 0;
+        animation: fade-up 760ms 1260ms cubic-bezier(0.16, 0.84, 0.24, 1) forwards;
+      }
+
+      .progress {
+        position: relative;
+        width: clamp(220px, 22vw, 340px);
+        height: 2px;
+        margin-top: -6px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: rgba(120, 160, 255, 0.12);
+        opacity: 0;
+        animation: fade-in 500ms 1350ms ease-out forwards;
+      }
+
+      .progress i {
+        position: absolute;
+        inset: 0;
+        transform-origin: left center;
+        transform: scaleX(0);
+        background: linear-gradient(90deg, rgba(77, 147, 248, 0.25), #7fb2ff 58%, #eef6ff 100%);
+        box-shadow: 0 0 14px rgba(120, 175, 255, 0.75);
+        animation: fill 1050ms 1380ms cubic-bezier(0.45, 0, 0.2, 1) forwards;
+      }
+
+      .progress::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 30%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+        animation: shimmer 1300ms 1500ms ease-in-out infinite;
+      }
+
+      /* keyframes */
+      @keyframes stage-in { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes aurora {
+        from { transform: translate3d(-2%, -1%, 0) scale(1); }
+        to { transform: translate3d(2%, 2%, 0) scale(1.08); }
+      }
+      @keyframes aurora-2 {
+        from { transform: translate3d(1%, 2%, 0) scale(1.06); }
+        to { transform: translate3d(-2%, -2%, 0) scale(0.98); }
+      }
+      @keyframes ring {
+        0% { opacity: 0; transform: scale(0.40); }
+        10% { opacity: 0.5; }
+        68% { opacity: 0.10; }
+        100% { opacity: 0; transform: scale(1.32); }
+      }
+      @keyframes emblem-in {
+        from { opacity: 0; filter: blur(14px) brightness(1.1); transform: scale(0.78); }
+        to { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+      }
+      @keyframes halo {
+        0%, 100% { opacity: 0.35; transform: scale(0.94); }
+        50% { opacity: 0.75; transform: scale(1.06); }
+      }
+      @keyframes letter-in {
+        from { opacity: 0; filter: blur(7px); transform: translateY(12px); }
+        to { opacity: 1; filter: blur(0); transform: translateY(0); }
+      }
+      @keyframes sheen {
+        from { background-position: 190% 0; }
+        to { background-position: -90% 0; }
+      }
+      @keyframes fade-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes fill {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+      }
+      @keyframes shimmer {
+        from { transform: translateX(-130%); }
+        to { transform: translateX(360%); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="aurora"></div>
+      <canvas id="bubbles"></canvas>
+      <div class="rings"><span></span><span></span><span></span></div>
+
+      <div class="core">
+        <div class="emblem"><img src="./emblem.svg" alt="" /></div>
+
+        <div class="wordmark-wrap">
+          <div class="wordmark" id="wordmark" role="heading" aria-level="1">DeepSeek Harness</div>
+          <div class="sheen" aria-hidden="true">DeepSeek Harness</div>
+        </div>
+
+        <div class="tagline" id="tagline">正在唤醒智能体</div>
+        <div class="progress"><i></i></div>
+      </div>
+    </div>
+
+    <script>
+      // Per-letter reveal: letters fade up one after another.
+      const STAGGER = 26;
+      const DELAY = 520;
+
+      // Split a wordmark into per-letter boxes so the reveal can stagger them and the
+      // sheen layer (same boxes, no animation) stays pixel-aligned with the wordmark.
+      function split(el, animated) {
+        const text = el.textContent;
+        el.textContent = "";
+        const letters = [];
+        for (const ch of text) {
+          const span = document.createElement("span");
+          span.textContent = ch === " " ? "\u00a0" : ch;
+          if (animated) span.style.animationDelay = DELAY + letters.length * STAGGER + "ms";
+          el.appendChild(span);
+          letters.push(span);
+        }
+        return letters;
+      }
+
+      const word = document.getElementById("wordmark");
+      split(word, true);
+      split(document.querySelector(".sheen"), false);
+
+      // Esc bails out of the fullscreen splash if anything ever hangs.
+      addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          try { window.close(); } catch (err) {}
+          if (!window.closed) location.replace("about:blank");
+        }
+      });
+
+      // ?t=<ms> freezes the whole timeline for still previews.
+      const query = new URLSearchParams(location.search);
+      const freezeAt = query.has("t") ? Number(query.get("t")) : null;
+
+      // Drifting particles.
+      const canvas = document.getElementById("bubbles");
+      const ctx = canvas.getContext("2d");
+      let W = 0, H = 0;
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = canvas.clientWidth;
+        H = canvas.clientHeight;
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      const parts = Array.from({ length: 70 }, (_, i) => {
+        const a = Math.sin(i * 127.1) * 43758.5453;
+        const b = Math.sin(i * 311.7) * 12543.123;
+        const r1 = a - Math.floor(a);
+        const r2 = b - Math.floor(b);
+        return {
+          x: r1,
+          y: r2,
+          r: 0.7 + r2 * 2.1,
+          speed: 0.008 + r1 * 0.020,
+          sway: 8 + r2 * 26,
+          phase: r1 * Math.PI * 2,
+          alpha: 0.10 + r2 * 0.32,
+        };
+      });
+
+      function draw(ms) {
+        ctx.clearRect(0, 0, W, H);
+        const t = ms / 1000;
+        for (const p of parts) {
+          const y = ((p.y - p.speed * t) % 1 + 1) % 1;
+          const x = (p.x + (Math.sin(t * 0.6 + p.phase) * p.sway) / Math.max(W, 1)) % 1;
+          const px = x * W;
+          const py = y * H;
+          const g = ctx.createRadialGradient(px, py, 0, px, py, p.r * 4.5);
+          g.addColorStop(0, "rgba(196, 222, 255, " + p.alpha + ")");
+          g.addColorStop(1, "rgba(120, 170, 255, 0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(px, py, p.r * 4.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      resize();
+      addEventListener("resize", () => {
+        resize();
+        draw(performance.now());
+      });
+
+      if (freezeAt !== null) {
+        addEventListener("load", () => {
+          for (const a of document.getAnimations()) {
+            try {
+              a.pause();
+              a.currentTime = freezeAt;
+            } catch (e) {}
+          }
+          draw(freezeAt);
+        });
+      } else {
+        const t0 = performance.now();
+        (function loop(now) {
+          draw(now - t0);
+          requestAnimationFrame(loop);
+        })(t0);
+
+        const stages = ["正在唤醒智能体", "装载工作区", "连接模型"];
+        stages.forEach((label, i) => {
+          setTimeout(() => {
+            document.getElementById("tagline").textContent = label;
+          }, 1300 + i * 620);
+        });
+      }
+    </script>
+  </body>
+</html>
